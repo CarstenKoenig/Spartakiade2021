@@ -16,3 +16,7 @@ auf der [Spartakiade 2021](https://spartakiade.org/)
 - Strukturen und Patternmatching
 - Projekt "wir schreiben einen IntCode Interpreter" ([AoC 2019 - Tag 2 ff](https://adventofcode.com/2019/day/2))
 - Klassen und Interfaces (optional)
+
+> **Hinweis:**
+>
+> Stand / Anmerkungen nach dem Workshop mit Lösungen bitte zum Branch `NachWorkshop` wechseln.
