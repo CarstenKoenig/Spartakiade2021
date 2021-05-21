@@ -10,7 +10,10 @@ type Program =
 
 /// liest einen String von, durch ',' getrennte Values in ein Programm
 let parse (input : string) : Program =
-    failwith "todo"
+    input
+    |> fun s -> s.Split [| ',' |]
+    |> Seq.map System.Int32.Parse
+    |> Program
 
 /// Addresse/Index für den Speicher (0-basierend)
 type Address =
@@ -22,26 +25,26 @@ type Memory =
     /// liefert gleiches Format wie aus der Puzzlebeschreibung
     /// ("Value,Value,Value,...,Value")
     override this.ToString() =
-        match this with
-        | Memory m ->
-            m
-            |> Seq.map (fun kvp -> kvp.Value)
-            |> Seq.map string
-            |> fun s -> System.String.Join(",", s)
+        let (Memory map) = this
+        map
+        |> Seq.map (fun kvp -> string kvp.Value)
+        |> fun values -> System.String.Join (",", values)
     
 /// initialisiert Speicher aus einem Program
-// let initMemory (Program value) : Memory =
-let initMemory program : Memory =
-    failwith "todo"
+let initMemory (Program from) : Memory =
+    from
+    |> Seq.mapi (fun adr value -> (adr, value))
+    |> Map.ofSeq
+    |> Memory
 
 /// liest den Inhalt des Speichers an der gegebenen Addresse
 /// wirft eine Exception falls die Addresse ungültig ist
-let readAt adr memory =
-    failwith "todo"
+let readAt adr (Memory memory) =
+    memory.[adr]
     
 /// liefert eine Speicher-Kopie die an 'adr' den Wert 'value' enthält
-let writeTo adr value memory =
-    failwith "todo"
+let writeTo adr value (Memory memory) =
+    Memory (memory.Add (adr, value))
  
 /// unterstützes Befehlsset
 type OpCode =
@@ -51,18 +54,45 @@ type OpCode =
 
 /// liest einen Opcode ab 'adr' aus dem Speicher
 /// wirft Exceptions wenn das nicht möglich ist
-let getOpCodeAt (adr : Address) (memory : Memory) : OpCode =
-    failwith "todo"
+let getOpCodeAt (adr : Address) (memory : Memory) =
+    match readAt adr memory with
+    | 1 ->
+        let adrA = readAt (adr+1) memory
+        let adrB = readAt (adr+2) memory
+        let adrOut = readAt (adr+3) memory
+        OpAdd (adrA, adrB, adrOut)
+    | 2 ->
+        let adrA = readAt (adr+1) memory
+        let adrB = readAt (adr+2) memory
+        let adrOut = readAt (adr+3) memory
+        OpMul (adrA, adrB, adrOut)
+    | 99 ->
+        OpHalt
+    | unknown ->
+        failwithf "unknown OpCode %d at address %d" unknown adr
 
 /// wieviel Speicher-Zellen besetzt der übergebene 'opcode'?
-let opCodeLen (opcode : OpCode) : int =
-    failwith "todo"
+let opCodeLen (opcode : OpCode) =
+    match opcode with
+    | OpHalt -> 1
+    | OpAdd _ -> 4
+    | OpMul _ -> 4
         
 /// verarbeitet 'opcode'
 /// bei 'OpHalt' wird einfach 'None' geliefert sonst
 /// wird eine Kopie von 'memory' geliefert die durch das Ausführen von 'opcode' entsteht
-let executeOpcode (opcode : OpCode) (memory : Memory) : Memory option =
-    failwith "todo"
+let executeOpcode (opcode : OpCode) (memory : Memory) =
+    match opcode with
+    | OpHalt ->
+        None
+    | OpAdd (adrA, adrB, outAdr) ->
+        let valA = readAt adrA memory
+        let valB = readAt adrB memory
+        Some (writeTo outAdr (valA + valB) memory)
+    | OpMul (adrA, adrB, outAdr) ->
+        let valA = readAt adrA memory
+        let valB = readAt adrB memory
+        Some (writeTo outAdr (valA * valB) memory)
         
 /// an welcher Stelle im Speicher soll der nächste Opcode/Befehl gelesen werden
 type InstructionPointer =
@@ -73,11 +103,24 @@ type InstructionPointer =
 /// diesen auf 'memory' an - liefert 'None' falls
 /// es ein 'Halt' war oder 'Some (neueIp, neuerMemory)'
 /// fertig für den nächsten Step
-let step (ip : InstructionPointer, memory : Memory)
-    : (InstructionPointer * Memory) option =
-    failwith "todo"
+let step (ip : InstructionPointer, memory : Memory) =
+    let opCode = getOpCodeAt ip memory
+    executeOpcode opCode memory
+    |> Option.map (fun updatedMemory -> (ip + opCodeLen opCode, updatedMemory))
 
+/// führt 'step' bis zum halt durch
+let run (memory : Memory) =
+    Seq.unfold
+        (fun state ->
+            step state
+            // unfold into (IP / Memory) pairs
+            |> Option.map (fun res -> (res,res))
+        )
+        (0, memory)
+        
 /// führt 'step' bis zum halt durch und liefert
 /// den letzten Speicher-Zustand davor
-let eval (memory : Memory) : Memory =
-    failwith "todo"
+let eval (memory : Memory) =
+    run memory
+    |> Seq.last
+    |> snd
